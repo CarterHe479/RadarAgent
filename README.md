@@ -83,12 +83,30 @@ If `synthetic_points/rec_{id}.npy` does not exist for a given motion, the agent 
 
 ## Setup
 
+### Python requirement
+
+`transformers >= 4.51` (required for Qwen 3) only supports **Python 3.10+**.  
+Use [pyenv](https://github.com/pyenv/pyenv) or any other method to get Python 3.10:
+
+```bash
+# If pyenv is installed (no sudo needed)
+pyenv install 3.10.16   # skip if already installed
+```
+
+### Create venv and install dependencies
+
 ```bash
 cd RadarAgent
-pip install -r requirements.txt
+
+# Create venv with Python 3.10
+python3.10 -m venv .venv          # or: ~/.pyenv/versions/3.10.16/bin/python -m venv .venv
+
+# Install all dependencies
+.venv/bin/pip install --upgrade pip
+.venv/bin/pip install -r requirements.txt
 
 # NLTK data for METEOR (only needed for evaluation)
-python -c "import nltk; nltk.download('wordnet'); nltk.download('omw-1.4')"
+.venv/bin/python -c "import nltk; nltk.download('wordnet'); nltk.download('omw-1.4')"
 ```
 
 GPU with ≥ 16 GB VRAM is recommended for Qwen 3 8B in bfloat16.  
@@ -98,13 +116,14 @@ For CPU-only testing, set `MODEL_NAME = "Qwen/Qwen3-1.7B"` in `config.py`.
 
 ## Usage
 
-All commands are run from the `RadarAgent/` directory with `PYTHONPATH=.` set (the scripts handle this automatically).
+All commands are run from the `RadarAgent/` directory. Use `.venv/bin/python` (or activate the venv first with `source .venv/bin/activate`). The shell scripts handle this automatically.
 
 ### Interactive chat
 
 ```bash
 ./scripts/run_interactive.sh
-# or
+# or manually:
+source .venv/bin/activate
 PYTHONPATH=. python main.py --interactive
 ```
 
@@ -127,20 +146,20 @@ Agent: Motion 000001 shows a brief squat-and-jump (~1.8 s) with strong vertical
 ### Single query
 
 ```bash
-PYTHONPATH=. python main.py --query "Describe what the person is doing in motion 000003"
+PYTHONPATH=. .venv/bin/python main.py --query "Describe what the person is doing in motion 000003"
 ```
 
 ### Visualise a motion
 
 ```bash
 # Radar point cloud (6 frames)
-PYTHONPATH=. python main.py --visualize 000021 --mode point_cloud
+PYTHONPATH=. .venv/bin/python main.py --visualize 000021 --mode point_cloud
 
 # Skeleton pose
-PYTHONPATH=. python main.py --visualize 000021 --mode skeleton
+PYTHONPATH=. .venv/bin/python main.py --visualize 000021 --mode skeleton
 
 # Centre-of-mass trajectory
-PYTHONPATH=. python main.py --visualize 000021 --mode trajectory
+PYTHONPATH=. .venv/bin/python main.py --visualize 000021 --mode trajectory
 ```
 
 ### Evaluation

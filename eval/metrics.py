@@ -140,15 +140,20 @@ def compute_cider(
 def compute_bertscore(
     hypotheses: List[str],
     references_list: List[List[str]],
-    model_type: str = "microsoft/deberta-xlarge-mnli",
+    model_type: str = "roberta-large",
     device: Optional[str] = None,
 ) -> dict:
     """Compute BERTScore F1 (mean over samples).
 
+    Uses roberta-large (the standard BERTScore model, ~500 MB) with
+    use_fast_tokenizer=False to avoid an OverflowError in bert_score 0.3.13
+    caused by the rust-backed tokenizer rejecting unbounded max_length values
+    when paired with transformers >= 5.x.
+
     Args:
         hypotheses:      List of generated sentences.
         references_list: For each hypothesis, the list of references.
-        model_type:      BERTScore model.
+        model_type:      BERTScore model (default: roberta-large).
         device:          'cpu' or 'cuda'; None = auto-detect.
 
     Returns:
@@ -169,6 +174,10 @@ def compute_bertscore(
         model_type=model_type,
         device=device,
         verbose=False,
+        # use_fast_tokenizer=False avoids OverflowError in bert_score 0.3.13
+        # with the rust-backed tokenizer (tokenizers >= 0.20) when
+        # transformers passes max_length=None → sys.maxsize → int32 overflow.
+        use_fast_tokenizer=False,
     )
     return {
         "precision": float(P.mean()),

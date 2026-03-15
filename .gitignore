@@ -1,0 +1,41 @@
+# Python 编译文件（__pycache__ 文件夹和 .pyc/.pyo 文件）
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python 虚拟环境（你的项目使用 .venv，需忽略）
+.venv/
+venv/
+env/
+ENV/
+*.env
+
+# 输出文件（outputs 目录下的可视化、结果文件，这类生成文件无需提交）
+outputs/
+
+# 临时文件和缓存
+*.swp
+*.swo
+.DS_Store  # macOS 系统文件
+*.tmp
+*.log
+.cache/
+
+# IDE/编辑器配置文件（按需保留，推荐忽略）
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.iml
+.gradle/
+
+# 操作系统相关文件
+Thumbs.db  # Windows 缩略图缓存
+Desktop.ini
+
+# 可选：如果有大型数据文件/模型文件，也可添加
+# *.pth
+# *.pt
+# *.h5
+# *.ckpt
+# data/

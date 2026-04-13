@@ -97,16 +97,36 @@ def _detect_run(joints: np.ndarray, fps: int) -> bool:
 
 
 def _detect_jump(joints: np.ndarray) -> bool:
-    """Jump: pelvis z rises by ≥ 0.15 m above its minimum and returns."""
+    """Jump: pelvis z rises ≥ 0.25 m above its minimum AND the upward phase is fast.
+
+    Raising the threshold from 0.15 m to 0.25 m eliminates false positives from
+    ordinary walking (pelvis bobs ~0.05-0.10 m) and arm-raises / bending
+    (which can produce 0.10-0.20 m root oscillation without the feet leaving
+    the ground).  The additional velocity gate (peak upward speed > 1.5 m/s)
+    requires ballistic-style propulsion, characteristic of actual jumps.
+    """
+    fps = RADAR_FPS
     z = joints[:, 0, 2]
     z_range = z.max() - z.min()
-    return z_range >= 0.15 and z.argmax() not in (0, len(z) - 1)
+    if z_range < 0.25:
+        return False
+    # The peak must not be at the very start or end (it must rise and fall)
+    if z.argmax() in (0, len(z) - 1):
+        return False
+    # Require a fast upward velocity phase (ballistic motion)
+    z_vel = np.diff(z) * fps        # pelvis vertical velocity (m/s)
+    peak_upward_vel = float(z_vel.max())
+    return peak_upward_vel > 1.5
 
 
 def _detect_squat_crouch(joints: np.ndarray) -> bool:
-    """Squat/crouch: pelvis z drops ≥ 0.10 m below starting value."""
+    """Squat/crouch: pelvis z drops ≥ 0.20 m below its starting value.
+
+    Raised from 0.10 m to 0.20 m to avoid false positives from small natural
+    postural sways and backward-leaning motions.
+    """
     z = joints[:, 0, 2]
-    return float(z[0] - z.min()) >= 0.10
+    return float(z[0] - z.min()) >= 0.20
 
 
 def _detect_arm_raise(joints: np.ndarray) -> Tuple[bool, bool]:

@@ -65,12 +65,14 @@ def cmd_evaluate(args) -> None:
 
     agent = _load_agent()
     output_path = Path(args.output) if args.output else None
+    temperature = getattr(args, "temperature", 0.3)
 
     result = run_evaluation(
         agent,
         split=args.split,
         max_samples=args.max_samples,
         output_path=output_path,
+        temperature=temperature,
     )
 
     if result:
@@ -120,6 +122,8 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Limit evaluation to N samples (default: all)")
     ev.add_argument("--output", type=str, default=None,
                     help="Path to save JSON results (default: outputs/results/eval_{split}.json)")
+    ev.add_argument("--temperature", type=float, default=0.3,
+                    help="Generation temperature during evaluation (default: 0.3)")
 
     # visualise
     viz = sub.add_parser("visualize", aliases=["viz"],

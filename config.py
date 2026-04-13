@@ -48,7 +48,7 @@ BODY_PART_JOINTS = {
 
 # ── Agent ─────────────────────────────────────────────────────────────────────
 MAX_AGENT_ITERATIONS    = 8
-GENERATION_MAX_TOKENS   = 2048
+GENERATION_MAX_TOKENS   = 512   # reduced: tool reasoning + short final answer fit in 512 tokens
 GENERATION_TEMPERATURE  = 0.7
 
 # ── Evaluation ────────────────────────────────────────────────────────────────

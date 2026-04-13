@@ -17,7 +17,7 @@ import logging
 from typing import Any, List, Optional
 
 from config import MAX_AGENT_ITERATIONS, GENERATION_MAX_TOKENS, GENERATION_TEMPERATURE
-from agent.llm import load_model, generate, parse_tool_calls, strip_tool_call_tags
+from agent.llm import load_model, generate, parse_tool_calls, strip_tool_call_tags, strip_thinking
 from agent.prompts import SYSTEM_PROMPT, FEW_SHOT_EXAMPLES
 from agent.tool_schemas import TOOL_SCHEMAS
 from tools.registry import ToolRegistry
@@ -59,8 +59,22 @@ class RadarAgent:
 
     # ── public interface ──────────────────────────────────────────────────────
 
-    def run(self, user_query: str) -> str:
-        """Run the agent for a single user query and return the final answer."""
+    def run(
+        self,
+        user_query: str,
+        temperature: Optional[float] = None,
+        max_new_tokens: Optional[int] = None,
+    ) -> str:
+        """Run the agent for a single user query and return the final answer.
+
+        Args:
+            user_query:    The natural-language question or command.
+            temperature:   Override generation temperature (None = use config default).
+            max_new_tokens: Override max tokens per step (None = use config default).
+        """
+        _temp     = temperature   if temperature   is not None else GENERATION_TEMPERATURE
+        _max_tok  = max_new_tokens if max_new_tokens is not None else GENERATION_MAX_TOKENS
+
         messages = self._build_initial_messages(user_query)
 
         for iteration in range(MAX_AGENT_ITERATIONS):
@@ -71,16 +85,16 @@ class RadarAgent:
                 self.tokenizer,
                 messages,
                 self.tool_schemas,
-                max_new_tokens=GENERATION_MAX_TOKENS,
-                temperature=GENERATION_TEMPERATURE,
+                max_new_tokens=_max_tok,
+                temperature=_temp,
             )
             logger.debug("Raw response: %s", response[:200])
 
             tool_calls = parse_tool_calls(response)
 
             if not tool_calls:
-                # Plain text answer – done.
-                return strip_tool_call_tags(response)
+                # Plain text answer – strip any residual thinking tokens then return.
+                return strip_thinking(strip_tool_call_tags(response))
 
             # Append the assistant's message (including tool-call blocks)
             messages.append({"role": "assistant", "content": response})
@@ -104,14 +118,14 @@ class RadarAgent:
                 "Please now provide your final answer as a concise motion description."
             ),
         })
-        return generate(
+        return strip_thinking(generate(
             self.model,
             self.tokenizer,
             messages,
             self.tool_schemas,
-            max_new_tokens=512,
-            temperature=0.3,
-        )
+            max_new_tokens=min(_max_tok, 256),
+            temperature=min(_temp, 0.3),
+        ))
 
     # ── internal helpers ──────────────────────────────────────────────────────
 

@@ -22,9 +22,10 @@ from typing import TYPE_CHECKING, List, Optional
 
 from tqdm import tqdm
 
-from config import SPLITS_DIR, RESULTS_DIR
+from config import SPLITS_DIR, RESULTS_DIR, JOINTS_DIR, SYNTHETIC_POINTS_DIR
 from tools.data_retrieval import _read_descriptions
 from eval.metrics import compute_all_metrics
+from agent.llm import strip_thinking
 
 if TYPE_CHECKING:
     from agent.agent import RadarAgent
@@ -38,11 +39,20 @@ QUERY_TEMPLATE = (
 )
 
 
-def load_split_ids(split: str) -> list[str]:
+def load_split_ids(split: str) -> List[str]:
     path = SPLITS_DIR / f"{split}.txt"
     if not path.exists():
         raise FileNotFoundError(f"Split file not found: {path}")
     return [line.strip() for line in path.read_text().splitlines() if line.strip()]
+
+
+def _has_motion_data(motion_id: str) -> bool:
+    """Return True if joint or synthetic point-cloud data exists for motion_id."""
+    if (SYNTHETIC_POINTS_DIR / f"rec_{motion_id}.npy").exists():
+        return True
+    if (JOINTS_DIR / f"{motion_id}.npy").exists():
+        return True
+    return False
 
 
 def run_evaluation(
@@ -50,6 +60,7 @@ def run_evaluation(
     split: str = "test",
     max_samples: Optional[int] = None,
     output_path: Optional[Path] = None,
+    temperature: float = 0.3,
 ) -> dict:
     """Run the agent over a split and return aggregated metric scores.
 
@@ -58,6 +69,8 @@ def run_evaluation(
         split:        One of "train", "val", "test".
         max_samples:  Limit evaluation to this many samples (None = all).
         output_path:  Path to save the JSON results file.
+        temperature:  Generation temperature to use during evaluation (default 0.3
+                      for more deterministic output; lower than the interactive default).
 
     Returns:
         Dict with "metrics" and "samples" keys.
@@ -67,6 +80,17 @@ def run_evaluation(
         output_path = RESULTS_DIR / f"eval_{split}.json"
 
     ids = load_split_ids(split)
+
+    # Drop motion IDs that have no data; the agent can only produce error messages
+    # for those, which would unfairly drag down all metrics.
+    available_ids = [mid for mid in ids if _has_motion_data(mid)]
+    n_skipped = len(ids) - len(available_ids)
+    if n_skipped:
+        logger.info(
+            "Skipping %d/%d motion IDs that have no data files.", n_skipped, len(ids)
+        )
+    ids = available_ids
+
     if max_samples:
         ids = ids[:max_samples]
 
@@ -85,10 +109,13 @@ def run_evaluation(
 
         query = QUERY_TEMPLATE.format(motion_id=motion_id)
         try:
-            generated = agent.run(query)
+            generated = agent.run(query, temperature=temperature)
         except Exception as exc:
             logger.error("Agent failed on %s: %s", motion_id, exc)
             generated = ""
+
+        # Safety: strip any residual <think>...</think> blocks before scoring.
+        generated = strip_thinking(generated)
 
         hypotheses.append(generated)
         references_list.append(refs)

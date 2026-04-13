@@ -33,6 +33,8 @@ _TOOL_CALL_RE = re.compile(
     re.DOTALL,
 )
 
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+
 
 def parse_tool_calls(response: str) -> List[Dict[str, Any]]:
     """Extract tool calls from a Qwen 3 response string.
@@ -58,6 +60,17 @@ def parse_tool_calls(response: str) -> List[Dict[str, Any]]:
 def strip_tool_call_tags(response: str) -> str:
     """Remove <tool_call>…</tool_call> blocks from a response, trimming whitespace."""
     cleaned = _TOOL_CALL_RE.sub("", response).strip()
+    return cleaned
+
+
+def strip_thinking(response: str) -> str:
+    """Remove <think>…</think> reasoning blocks from a Qwen 3 response.
+
+    Qwen 3 emits these when thinking mode is active (or as a fallback). They
+    must be stripped before the response is scored or shown to a user, because
+    the raw reasoning chain is neither the answer nor a valid motion description.
+    """
+    cleaned = _THINK_RE.sub("", response).strip()
     return cleaned
 
 
@@ -97,12 +110,15 @@ def generate(
     The tools list is passed to apply_chat_template so the model knows
     which functions are available.
     """
-    # Qwen 3 may support a `enable_thinking` flag; disable for tool-use tasks
+    # Disable thinking mode so Qwen 3 does not emit <think>...</think> blocks.
+    # This is important both for latency and because thinking tokens contaminate
+    # metric computation when the full generated string is scored.
     text = tokenizer.apply_chat_template(
         messages,
         tools=tools,
         tokenize=False,
         add_generation_prompt=True,
+        enable_thinking=False,
     )
     inputs = tokenizer(text, return_tensors="pt").to(model.device)
 

@@ -13,11 +13,12 @@ Raw JSON outputs live in `outputs/results/`.
 | Experiment | Model | Tools | n | ROUGE-1 | ROUGE-L | BLEU-1 | BLEU-4 | METEOR | CIDEr | BERTScore | SimCSE | Status |
 |------------|-------|-------|---|---------|---------|--------|--------|--------|-------|-----------|--------|--------|
 | **E1** RadarAgent | Qwen3-8B | All | 50 | **32.94** | **28.94** | **36.82** | **6.46** | **24.75** | **0.36** | 88.31 | **60.43** | ✅ |
-| **E3** Qwen3-1.7B | Qwen3-1.7B | All | 500 | — | — | — | — | — | — | — | — | ⏳ |
+| **E3** Qwen3-1.7B | Qwen3-1.7B | All | 50 | **37.50** | **37.47** | 26.96 | **10.15** | 23.41 | 0.24 | **90.29** | 55.40 | ✅ |
 | **E5** Llama-3.1-8B | Llama-3.1-8B-Instruct | Plain-text features | 500 | — | — | — | — | — | — | — | — | ⏳ |
 | **E6** Gemini 2.0 Flash | Gemini 2.0 Flash (API) | Plain-text features | 500 | 29.76 | 26.31 | 33.10 | 4.81 | 18.46 | 0.16 | **88.45** | 54.44 | ✅ |
 
 > **E1 notes:** Evaluated on 50 samples from the test split (CPU run, proxy-blocked environment).  
+> **E3 notes:** Qwen3-1.7B with full agent + all tools; 50 samples, CPU-only (~23 sec/sample). Qwen3-1.7B surprisingly outperforms 8B on ROUGE-L and BERTScore, likely due to more concise outputs that better match HumanML3D annotation style.  
 > **E6 notes:** Gemini 2.0 Flash via Google GenAI API; same feature context as E5. Runtime ~6 min / 500 samples.
 
 ---
@@ -104,6 +105,32 @@ Raw JSON outputs live in `outputs/results/`.
 - Switched system prompt to enforce HumanML3D-style terse single-sentence output
 - Reduced `GENERATION_MAX_TOKENS` from 2048 → 512 and eval temperature to 0.3
 - Fixed BERTScore overflow: `model_type="roberta-large"`, `use_fast_tokenizer=False`
+
+---
+
+### E3 – Qwen3-1.7B (50 samples)
+
+- **Output file:** `outputs/results/experiments/E3_backbone_qwen3_1b_n50.json`
+- **Model:** Qwen/Qwen3-1.7B, thinking mode **off**, temperature 0.3
+- **Tools:** All 7 tools (same setup as E1)
+- **Environment:** CPU-only, ~23 sec/sample
+
+| Metric | Score |
+|--------|-------|
+| ROUGE-1 | 37.50 |
+| ROUGE-L | **37.47** |
+| BLEU-1 | 26.96 |
+| BLEU-4 | **10.15** |
+| METEOR | 23.41 |
+| CIDEr | 0.24 |
+| BERTScore | **90.29** |
+| SimCSE | 55.40 |
+
+**Observations:**
+- ROUGE-L (37.47) and BERTScore (90.29) both exceed E1 (28.94 / 88.31), suggesting the 1.7B model produces tighter, more annotation-aligned outputs.
+- BLEU-4 (10.15) is notably higher than E1 (6.46), consistent with shorter, more precise generations.
+- BLEU-1 (26.96) is lower than E1 (36.82), which may indicate less vocabulary overlap despite strong sequence-level alignment.
+- The smaller model appears to adhere more strictly to the terse output style, which benefits metrics calibrated to short reference sentences.
 
 ---
 
